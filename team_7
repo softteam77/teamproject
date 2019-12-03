@@ -1,0 +1,182 @@
+#include<stdio.h>
+#include<stdbool.h>
+#include<unistd.h>
+#include<fcntl.h>
+#include<sys/stat.h>
+#include<stdlib.h>
+#include<string.h>
+#include<sys/types.h>
+#include<sys/wait.h>
+#include<time.h>
+
+void _register(int fd){
+        printf("<단어 등록>\n");
+        printf("영단어 : ");
+        char eword[30];
+        scanf("%s",&eword);
+        write(fd, eword, strlen(eword));
+        write(fd, " ", 1);
+        fflush(stdin);                                                                                                          printf("뜻 : ");
+        char kword[30];                                                                                                         scanf("%s", &kword);
+        write(fd, kword, strlen(kword));
+        write(fd, "\n", 1);
+        fflush(stdin);
+}
+void search(int fd){
+        printf("입력하세요 : ");
+        char word[30];
+        scanf("%s", &word);
+        pid_t childpid;
+        childpid = fork();
+        switch(childpid)
+        {
+                case -1:
+                        printf("fork failed");
+                        break;
+                case 0:
+                        execl("/bin/grep","grep",word,"data.txt",(char*) 0);
+                        printf("exec failed");
+                        break;
+                default:
+                        wait((int*) 0);
+                        //printf("completed");
+                        break;
+        }
+}
+void show(int fd){
+        lseek(fd, 0, SEEK_SET);
+        char buffer[2048]={0};
+        read(fd, buffer, 2048);
+        printf("%s", buffer);
+}
+void equiz(int fd){
+        lseek(fd, 0, SEEK_SET);
+        char buffer[2048]={0};
+        read(fd, buffer, 2048);
+        int num = 0;
+        int numw = 0;
+        char eword[100][1500];
+        char kword[100][1500];
+        for(int i=0; i<2048; i++){
+                if(buffer[i]==' '){
+                        for(int j=num; j<i; j++){
+                                eword[numw][j-num]= buffer[j];
+                        }
+                        num = i+1;
+                }
+                if(buffer[i]=='\n'){
+                        for(int j=num; j<i; j++){
+                                kword[numw][j-num]=buffer[j];
+                        }
+                        num = i+1;
+                        numw++;
+                }
+        }
+        srand(time(NULL));
+        int random = rand()%numw;
+        char answer[20];
+        printf("문제 : %s\n답 : ",eword[random]);
+        scanf("%s",&answer);
+        fflush(stdin);
+        int num3 = strcmp(answer,kword[random]);
+        if(num3==0){
+                        printf("정답입니다\n");
+        }else{
+        printf("오답입니다\n");
+        }
+}
+void kquiz(int fd){
+        lseek(fd, 0, SEEK_SET);
+        char buffer[2048] = {0};
+        read(fd, buffer, 2048);
+        int num = 0;
+        int numw = 0;
+        char eword[100][1500];
+        char kword[100][1500];
+        for(int i=0; i<2048; i++){
+                if(buffer[i]==' '){
+                        for(int j=num; j<i; j++){
+                                eword[numw][j-num] = buffer[j];
+                        }
+                        num = i+1;
+                }
+                if(buffer[i]=='\n'){
+                        for(int j=num; j<i; j++){
+                                kword[numw][j-num]=buffer[j];
+                        }
+                        num = i+1;
+                        numw++;
+                }
+        }
+        srand(time(NULL));
+        int random = rand()%numw;
+        char answer[20];
+        printf("문제 : %s\n답 : ", kword[random]);
+        scanf("%s",&answer);
+        fflush(stdin);
+        int num3 = strcmp(answer,eword[random]);
+        if(num3==0){
+                printf("정답입니다.\n");
+        }else{
+                printf("오답입니다.\n");
+        }
+}
+void menu(int fd){
+        while(true){
+                int num;
+                printf("================================== 메뉴 =============================\n");
+                printf("1. 단어등록 2. 단어검색 3. 단어목록 4. 영어퀴즈 5. 한글퀴즈 6. 종료 \n");
+                printf(">>>>>>>>>>");
+                scanf("%d", &num);
+                fflush(stdin);
+                switch(num){
+                        case(1) :system("clear");
+                                _register(fd);
+                                  break;
+                        case(2) :system("clear");
+                                  search(fd);
+                                  break;
+                        case(3) : system("clear");
+                                  show(fd);
+                                  break;
+                        case(4) : system("clear");
+                                  equiz(fd);
+                                  break;
+                        case 5 : system("clear");
+                                  kquiz(fd);
+                                 break;
+                        case(6) : break;
+                        default: printf("다시 입력해주세요.\n");
+                                 continue;
+                }
+                if(num==6) break;
+        }
+}
+int main(void){
+        int fd = 0;
+        mode_t fdmode = (S_IRWXU|S_IRWXG|S_IRWXO);
+        fd = open("data.txt", O_CREAT|O_RDWR|O_APPEND,fdmode);
+        if(fd<0){
+                perror("faile open file");
+                exit(0);
+        }
+        long timedif;
+        struct timespec tpstart, tpend;
+        if(clock_gettime(CLOCK_REALTIME, &tpstart) == -1){
+                perror("시작시간 가져오기 실패");
+                return 1;
+        }
+        menu(fd);
+        if(clock_gettime(CLOCK_REALTIME, &tpend) == -1){
+                perror("종료시간 가져오기 실패");
+                return 1;
+        }
+        menu(fd);
+        if(clock_gettime(CLOCK_REALTIME, &tpend) == -1){
+                perror("종료시간 가져오기 실패");
+                return 1;
+        }
+        timedif = tpend.tv_sec - tpstart.tv_sec;
+        printf("총 공부시간 : %ld초\n",timedif);
+        close(fd);
+}
